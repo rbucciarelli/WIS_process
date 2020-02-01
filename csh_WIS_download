@@ -1,0 +1,46 @@
+#!/bin/csh
+#- Download WIS netcdf files from USACE THREDDS file server:
+#- https://chlthredds.erdc.dren.mil/thredds/fileServer/wis/Atlantic/ST41113/2012/WIS-ocean_waves_ST41113_201201.nc
+#-------------------------------------------------------------
+
+set out_dir = "./data/"
+set cdip_stns = `nawk '{FS=",";print $1}' WIS-stns.txt`
+set ndbc_stns = `nawk '{FS=",";print $2}' WIS-stns.txt`
+set start_dates = `nawk '{FS=",";print $3}' WIS-stns.txt`
+set regions = `nawk '{FS=",";print $4}' WIS-stns.txt`
+set years = `cat ./year-list.txt`
+set months = (01 02 03 04 05 06 07 08 09 10 11 12)
+
+set logfile = ./logfile
+if (-e $logfile) then
+  /bin/rm -r ./logfile
+endif
+
+set src_url = 'https://chlthredds.erdc.dren.mil/thredds/dodsC/wis/'
+set src_url = 'https://chlthredds.erdc.dren.mil/thredds/fileServer/wis/'
+
+#- Set wget options
+set opts = ' --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 -t 0 '
+
+set i = 1
+foreach stn ($ndbc_stns)
+  echo $stn >> $logfile
+  set url = $src_url$regions[$i]"/"
+  if (! -e $out_dir$stn) then
+    /bin/mkdir $out_dir$stn
+  endif
+  foreach yyyy ($years)
+    set url = $src_url$regions[$i]"/ST"$stn"/"$yyyy"/"
+    foreach mm ($months)
+      set yyyymm = $yyyy$mm  
+      set fname = "WIS-ocean_waves_ST"$stn"_"$yyyymm".nc"
+      #-- Check and see if file already on disk
+      if (! -e $out_dir$stn"/"$fname) then
+        wget $opts -P $out_dir$stn $url$fname 
+        echo "-->"$yyyymm >> $logfile
+      endif
+    end
+  end
+  @ i = $i + 1
+end
+
